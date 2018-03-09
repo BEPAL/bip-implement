@@ -1,0 +1,3 @@
+[submodule "bitcoinj-core"]
+	path = bitcoinj-core
+	url = https://github.com/Bepal/bitcoinj-core.git
