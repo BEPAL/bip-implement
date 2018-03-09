@@ -21,20 +21,18 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package pro.bepal;
 
 import com.google.common.collect.ImmutableList;
 import org.bitcoinj.core.ECKey;
+import org.bitcoinj.core.LegacyAddress;
 import org.bitcoinj.core.NetworkParameters;
-import org.bitcoinj.core.Sha256Hash;
 import org.bitcoinj.crypto.*;
 import org.bitcoinj.params.MainNetParams;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
-import java.io.*;
-import java.security.MessageDigest;
-import java.util.ArrayList;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.List;
 
 /**
@@ -49,13 +47,16 @@ public class Program {
     /**
      * Chinese text typically does not use any spaces as word separators.
      * For the sake of uniformity, we propose to use normal ASCII spaces (0x20) to separate words as per standard.
-     * <p>
+     *
      * <span>https://github.com/Bepal/bips/blob/master/bip-0039/chinese_simplified.txt</span>
      */
     private static final String BIP39_CHINESE_RESOURCE_NAME = "mnemonic/wordlist/zh_cn.txt";
+
+    private static final String BIP39_CHINESE_SHA256 = "bfd683b91db88609fabad8968c7efe4bf69606bf5a49ac4a4ba5e355955670cb";
+
     /**
      * DefaultWords English text
-     * <p>
+     *
      * <span>https://github.com/Bepal/bips/blob/master/bip-0039/english.txt</span>
      */
     private static final String BIP39_ENGLISH_RESOURCE_NAME = "mnemonic/wordlist/english.txt";
@@ -66,23 +67,20 @@ public class Program {
      *
      * @return
      */
-    public DeterministicKey createMasterPrivateKey() {
-        String[] words = null;
-        try {
-            //load Chinese text resource
-            ArrayList<String> wordList = loadWordInputStream(BIP39_CHINESE_RESOURCE_NAME);
-            words = new String[wordList.size()];
-            wordList.toArray(words);
-        } catch (IOException ioe) {
-            System.err.println("load word list error");
-        }
-
-        MnemonicCode mnemonicCode = new MnemonicCode(words);
+    private DeterministicKey createMasterPrivateKey() {
 
         //private key seed
         byte[] seed = null;
 
         try {
+            //load mnemonic code，use chinese
+            InputStream stream = MnemonicCode.class.getResourceAsStream(BIP39_CHINESE_RESOURCE_NAME);
+            if (stream == null) {
+                throw new FileNotFoundException(BIP39_CHINESE_RESOURCE_NAME);
+            }
+
+            MnemonicCode mnemonicCode = new MnemonicCode(stream, BIP39_CHINESE_SHA256);
+
             SecureRandom secureRandom = new SecureRandom();
             byte[] randomData = secureRandom.random();
             //random generate mnemonic code
@@ -94,7 +92,12 @@ public class Program {
             }
             seed = MnemonicCode.toSeed(seedCode, "");
         } catch (Exception e) {
+            e.printStackTrace();
             System.err.println("create seed fail");
+        }
+
+        if (seed == null || seed.length == 0) {
+            System.err.println("seed is null");
         }
 
         //create master private key
@@ -109,13 +112,13 @@ public class Program {
     }
 
     /**
-     * create public key address from root private key
+     * create bitcoin address from root private key
      * implement bip-0044
      *
      * @param rootKey root private key
      * @param count   address count
      */
-    private void createPublicKeyAddress(DeterministicKey rootKey, Integer count) {
+    private void createBitcoinAddress(DeterministicKey rootKey, Integer count) {
 
         DeterministicHierarchy rootHierarchy = new DeterministicHierarchy(rootKey);
         //implement bip-0044 bitcoin path m / 44' / 0' / 0'
@@ -129,16 +132,16 @@ public class Program {
         //create external address and internal address
         for (int i = 0; i < count; i++) {
             ECKey ecKey = hierarchy.get(ImmutableList.of(ChildNumber.ZERO, new ChildNumber(i)), true, true);
-            System.out.printf("external address %d: %s\n", i + 1, ecKey.toAddress(parameters).toBase58());
+            System.out.printf("external address %d: %s\n", i + 1, LegacyAddress.fromPubKeyHash(parameters, ecKey.getPubKeyHash()).toBase58());
         }
         for (int i = 0; i < count; i++) {
             ECKey ecKey = hierarchy.get(ImmutableList.of(ChildNumber.ONE, new ChildNumber(i)), true, true);
-            System.out.printf("internal address %d: %s\n", i + 1, ecKey.toAddress(parameters).toBase58());
+            System.out.printf("internal address %d: %s\n", i + 1, LegacyAddress.fromPubKeyHash(parameters, ecKey.getPubKeyHash()).toBase58());
         }
     }
 
     @Test
-    public void testCreatePublicKeyAddress() {
+    public void testCreateBitcoinAddress() {
 
 //        uncomment this four line code , use you own mnemonic code
 //        String[] words = new String[]{"a","a","a","a","a","a","a","a","a","a","a","a"};
@@ -147,34 +150,51 @@ public class Program {
 //        DeterministicKey rootKey = HDKeyDerivation.createMasterPrivateKey(seed);
 
         DeterministicKey rootKey = createMasterPrivateKey();
-        createPublicKeyAddress(rootKey, 100);
+        createBitcoinAddress(rootKey, 10);
+
+    }
+
+    /**
+     * create eos privatekey, wif format
+     *
+     * @param rootKey root private key
+     */
+    private void createEosPrivateKey(DeterministicKey rootKey) {
+
+        DeterministicHierarchy rootHierarchy = new DeterministicHierarchy(rootKey);
+        //implement bip-0044 eos path m / 44' / 194' / 0'
+        ImmutableList<ChildNumber> thisRootPath = ImmutableList.of(new ChildNumber(44, true),
+                new ChildNumber(194, true), ChildNumber.ZERO_HARDENED);
+        DeterministicHierarchy hierarchy = new DeterministicHierarchy(rootHierarchy.get(thisRootPath, false, true));
+
+        //take 0
+        ECKey ecKey = hierarchy.get(ImmutableList.of(ChildNumber.ZERO, new ChildNumber(0)), true, true);
+
+        String privateKeyHex = ecKey.getPrivateKeyAsHex();
+
+        //convert to wif format
+        WalletImportFormatKit kit = new WalletImportFormatKit();
+        String wifString = kit.privateKeyToWIF(privateKeyHex, WalletImportFormatKit.MAINNET);
+
+        System.out.printf("EOS WIF Private Key = %s", wifString);
 
     }
 
 
-    /**
-     * load words from resource
-     *
-     * @param resourceName
-     * @return
-     * @throws IOException
-     */
-    private ArrayList<String> loadWordInputStream(String resourceName) throws IOException {
-        InputStream stream = MnemonicCode.class.getResourceAsStream(resourceName);
-        if (stream == null) {
-            throw new FileNotFoundException(BIP39_ENGLISH_RESOURCE_NAME);
-        }
+    @Test
+    public void testCreateEos() {
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
-        ArrayList<String> wordList = new ArrayList<>(2048);
-        MessageDigest md = Sha256Hash.newDigest();
-        String word;
-        while ((word = br.readLine()) != null) {
-            md.update(word.getBytes());
-            wordList.add(word);
-        }
-        br.close();
-        return wordList;
+        //uncomment this four line code , use you own mnemonic code
+//        String[] words = new String[]{"a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a"};
+//        List<String> seedCode = Arrays.asList(words);
+//        byte[] seed = MnemonicCode.toSeed(seedCode, "");
+//        DeterministicKey rootKey = HDKeyDerivation.createMasterPrivateKey(seed);
+
+        DeterministicKey rootKey = createMasterPrivateKey();
+
+        createEosPrivateKey(rootKey);
+
+
     }
 
 

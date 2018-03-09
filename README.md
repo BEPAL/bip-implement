@@ -19,3 +19,7 @@ a group of easy to remember words
  This BIP is a particular application of BIP43.
  
  * <span>https://github.com/Bepal/bips/blob/master/bip-0044.mediawiki</span>
+ 
+  EOS wallet mnemonic code standard proposed
+  
+ * <span>https://docs.google.com/document/d/1QsDjf2jIrT0QHqFs1AJt2YL6uEQTL4psm36cHUPL-8E/edit</span>

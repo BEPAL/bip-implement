@@ -5,8 +5,24 @@ apply plugin: 'java'
 
 sourceCompatibility = 1.8
 
-repositories {
-    mavenCentral()
+buildscript {
+    repositories {
+        mavenLocal()
+        maven {
+            url 'http://maven.aliyun.com/nexus/content/repositories/central/'
+        }
+        maven { url 'https://dl.bintray.com/ethereum/maven/' }
+    }
+
+}
+allprojects {
+    repositories {
+        mavenLocal()
+        maven {
+            url 'http://maven.aliyun.com/nexus/content/repositories/central/'
+        }
+        maven { url 'https://dl.bintray.com/ethereum/maven/' }
+    }
 }
 
 dependencies {

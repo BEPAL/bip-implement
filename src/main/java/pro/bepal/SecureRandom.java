@@ -38,15 +38,13 @@ public class SecureRandom {
      * random
      *
      * @return
-     * @throws Exception
      */
-    public byte[] random() throws Exception {
-        Long startTime = System.currentTimeMillis();
+    public byte[] random() {
         int count = 1000000;
         java.security.SecureRandom secureRandom = new java.security.SecureRandom();
         byte[] bytes = new byte[32];
         Integer[] sCount = new Integer[256];
-        //生成100w个256的随机数
+        //生成100w个256位的随机数
         for (int i = 0; i < count; i++) {
             secureRandom.nextBytes(bytes);
             boolean[] concatBits = bytesToBits(bytes);
@@ -65,7 +63,9 @@ public class SecureRandom {
         for (Integer c : sCount) {
             outputStream.write(c);
         }
-        return Arrays.copyOfRange(outputStream.toByteArray(), 0, 16);
+        byte[] bigByte = outputStream.toByteArray();
+        int start = secureRandom.nextInt(bigByte.length - 16);
+        return Arrays.copyOfRange(bigByte, start, start + 16);
     }
 
     /**
