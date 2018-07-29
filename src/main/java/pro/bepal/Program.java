@@ -154,48 +154,6 @@ public class Program {
 
     }
 
-    /**
-     * create eos privatekey, wif format
-     *
-     * @param rootKey root private key
-     */
-    private void createEosPrivateKey(DeterministicKey rootKey) {
-
-        DeterministicHierarchy rootHierarchy = new DeterministicHierarchy(rootKey);
-        //implement bip-0044 eos path m / 44' / 194' / 0'
-        ImmutableList<ChildNumber> thisRootPath = ImmutableList.of(new ChildNumber(44, true),
-                new ChildNumber(194, true), ChildNumber.ZERO_HARDENED);
-        DeterministicHierarchy hierarchy = new DeterministicHierarchy(rootHierarchy.get(thisRootPath, false, true));
-
-        //take 0
-        ECKey ecKey = hierarchy.get(ImmutableList.of(ChildNumber.ZERO, new ChildNumber(0)), true, true);
-
-        String privateKeyHex = ecKey.getPrivateKeyAsHex();
-
-        //convert to wif format
-        WalletImportFormatKit kit = new WalletImportFormatKit();
-        String wifString = kit.privateKeyToWIF(privateKeyHex, WalletImportFormatKit.MAINNET);
-
-        System.out.printf("EOS WIF Private Key = %s", wifString);
-
-    }
-
-
-    @Test
-    public void testCreateEos() {
-
-        //uncomment this four line code , use you own mnemonic code
-//        String[] words = new String[]{"a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a", "a"};
-//        List<String> seedCode = Arrays.asList(words);
-//        byte[] seed = MnemonicCode.toSeed(seedCode, "");
-//        DeterministicKey rootKey = HDKeyDerivation.createMasterPrivateKey(seed);
-
-        DeterministicKey rootKey = createMasterPrivateKey();
-
-        createEosPrivateKey(rootKey);
-
-
-    }
 
 
 }
